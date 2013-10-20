@@ -1,0 +1,8 @@
+Jogosultsagmatrixhoz lekérdezés:
+SELECT admins.username, admins.username, admrights.id, admrights.rightname, adminsrights.id
+	FROM admins
+	CROSS JOIN admrights
+	LEFT JOIN adminsrights ON adminsrights.rname=admrights.id
+		AND adminsrights.admin=admins.username
+	WHERE username='saci' ;
+

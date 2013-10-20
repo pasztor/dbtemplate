@@ -1,0 +1,251 @@
+Dokumentáció a DbTemplate rendszerhez.
+
+DbTemplate::CGI modul
+* init($konfigdir)
+	- meghívja a DbTemplate init-jét a saját kapott paraméterével
+	- ellenőrzi, h. be van-e jelentkezve, ha a konfig ezt kéri
+	- ellenőrzi, h. ssl-védett-e a kapcsolat, ha a konfig ezt kéri
+	- feldolgozz a query stringet, és a $DbTemplate::params{}-ba teszi
+	- POST esetén a POST-al jött paramétereket is feldolgozza, és a
+	  $DbTemplate::envpars{post}{}-ba teszi
+	- $DbTemplate::envpars{}user és abspath beállítása
+
+* run()
+	- Ha csak css-t kértek, akkor kiírjuk a fejlécet, és visszaadjuk
+	- He debug-ot kértek, akkor visszaadjuk, amit tudunk
+	- Ha refreshrender-t kértek, akkor csak az adott render tartalmát
+	  iratjuk ki a DbTemplate::HTML->renderElement() segítségével
+	- ha jött POST adat, akkor a DbTemlate->formFeed()-el feldolgoztatjuk
+	- legeneráljuk az oldalt
+
+* final()
+	- DbTemplate (szülő) final-ját meghívjuk
+
+
+DbTemplate modul
+* init($konfigdir)
+	- .dtconf betöltése
+	- adatbázishoz kapcsolódás
+
+* loadTemplate($templatenév)
+	- megpróbálja betölteni a paraméterül kapott templatet.
+	- ha '.' van a fájlpathnévben, akkor hibaüzen
+	- ha nem létezik adott nevű template, hibaüzen
+	- ha nem fut le jól a template betöltés, hibaüzen
+	- ha nincs definiálva a templatenév, akkor megpróbálja ugyanezeket
+	  a default templatettel
+
+* query($render)
+	- a paraméterül kapott render-hez való sql lekérdezést megcsinálja
+	- jelenleg támogatott rendertípusok:
+		- tableview
+		- pkeyview
+
+* formFeed($render)
+	- POST-al kapott adatokat lekezeli
+	- a CGI modul dolga kitalálni, hogy melyik render-hez is kapcsolódnak
+	  az adatok, és azt paraméterül megadni
+	- támogatott típusok:
+		- inputform (insert)
+		- multiinput (...)
+		- tableview (delete, update)
+		- pkeyview (update)
+
+* ugen($name)
+	- a paraméterül kapott névhez gyárt egy egyedi szekvenciát
+	  hasznos, pl. form egyedivé tételéhez
+
+* final()
+	- lezárja az adatbázis tranzakziókat
+	- lezárja az adatbáziskapcsolatot
+
+DbTemplate::HTML almodul
+* getStyle()
+	- visszaadja azt a kódot, amit a html fejlécébe kell betenni a css-hez
+	- ha a konfigban definiálva van a splitcss, akkor külön http
+	  lekérdezéssel lehet megszerezni a css tartalmat
+
+* getCssFile()
+	- kikeresi a Perlmodulok path-jából a DbTemplate.css-t, betölti, és
+	  a teljes tartalmát visszaadja
+
+* getJsFile()
+	- kikeresi a Perlmodulok path-jából a DbTemplate.js-t, betölti, és
+	  a teljes tartalmát visszaadja
+	- a visszaadás előtt apróbb módosításokat hajt rajta végre:
+		- @SELFREF@ behelyettesítése
+		- @TEMPLATE@ behelyettesítése
+
+* renderError($title, $warntext, $explain)
+	- generál egy teljes html oldalt, http protokoll fejléccel, és ezt
+	  adja visszatérési értékként.
+	- a CSS betöltésénél a splitcss, ha definiálva is volt,
+	  definiálatlanná teszi
+
+* renderPage()
+	- Legenerálja a html oldal vázát:
+		- head: title, css, js
+		- body: table-main
+			renderMenu() | renderMain()
+			---------------------------
+			    renderFooter()
+
+* renderMenu()
+	- a templatek könyvtárában végignézi az ott található fájlokat
+	- a rejtett fájlok nem kerülnek felsorolásra
+	- az alkönyvtárak nem kerülnek felsorolásra
+	- a konfig{menumap}-ja a fájlnevek kiíráskori feliratnevét befojásolja
+	- konfigban lehetőséget kapunk a menü generálásának customizálására:
+		- konfig{menuhead}
+		- konfig{menutail}
+		- konfig{menurender}
+
+* renderMain()
+	- az oldal központi részének renderelése a feladata
+	- ha definiált a templateben a pagetitle, akkor azt h1-el kiteszi
+	- a template{renderings} tömbjének minden pontját végigjárva a
+	  renderElement() segítségével megrajzolja az egyes részek tartalmát
+	- customizációs lehetőség továbbá:
+		- konfig{mainhead}
+		- konfig{maintail}
+
+* renderElement($rend)
+	- feladata egy-egy rendering megalkotása
+	- ha adott a pkey querystringben, és a render definiáltan nem szeretne
+	  pkey esetén látszódni, akkor undef értéket ad vissza
+	- amit generál szintén táblázat lesz
+	- támogatott renderingek:
+		- simpletext
+		- tableview
+		- inputform
+		- multiinput
+		- pkeyview
+	- jelenleg az inputformokat maga generálja
+	- a view-kat pedig mindig a renderTableView-al generálja
+
+* renderTableView($rend)
+	- feltételezi, hogy a lekérdezés már elő van neki készítve
+	- a render{columns} tömbjének megfelelően legenerálja a táblázat
+	  közepének tartalmát
+	- egy-egy oszlop tartalmát korlátozhatjuk, hogy csak megadott
+	  személyek lássák. a korlátozás típusai:
+	  	- static (@restrictrictlist)
+		- byselect (query($user))
+	- a mezőkön támogatott featureök:
+		- restricted
+		- editable
+		- delete
+		- pkeylink
+		- fillempty
+	- a mezőkhöz definiáltnak tételez fel egy trc0 és egy trc1 class-t
+	  és a mezőket felváltva jeleníti meg az egyik és másik css class-t
+	  alkalmazva rá
+
+* renderInputForm()
+	- a későbbiekben az inputformok renderelése ide kerülne
+
+* renderGroupMembership()
+	- tagsági mátrix kezelésére szolgáló renderelő lenne
+
+* renderFooter()
+	- legenerálja az oldal aljára kerülő szöveget
+
+* renderVer()
+	- legenerálja az verziószám html szövegét
+
+
+DbTemplate.js függvényei:
+* editorscript(formname, divname, renderseq, pkey, fno, fval, ftype, expars)
+	- a divnameben megadott div innerHTML-jét kicseréli, egy generált
+	  form-mal. az eredeti értéket kimenti, az lesz az alapértelmezett
+	  érték
+	- a form-nak a paraméterül kapott formname-t adja, hogy egyedi legyen
+	- az expars-t az updatescript kapja meg érintetlenül
+	- a renderseq formseq néven továbbítódik a post-kor
+	- a pkey a rekord beazonosításához kell
+	- az fno, a frissítendő mező beazonosítására szolgál
+	- az ftype lesz a beviteli mező típusa, és az alapértelmezett érték az
+	  fval-ból jön
+
+* updatescript(formname, expars)
+	- az editorscript által generált formok actionjeként használatos
+	- POST-al elküldi a cgi-nek a frissítendő form sorszámát
+	  (rendering sorszáma), a rekord primary key-ének értékét, a
+	  módosítandó mező sorszámát, és az új értéket
+
+* delrec(renderseq, name, pkey)
+	- a törlésre szolgáló oszlopoknál a törlés link actionscriptjeként
+	  szolgál
+	- a három paraméter:
+	  - a rendering sorszáma a template-hez
+	  - az elem egyedi neve
+	  - a kitörlendő elem elsődleges kulcsa
+	  - a törlésre való felhívás
+
+* refreshrender(renderseq)
+	- az adott div tartalmát újralekéréssel frissíti
+	- csak tesztcélokat szolgál
+
+
+
+konfig paraméterei:
+- [titleprefix]: a 'DbTemplate :: ' stringet helyettesítő szöveg a címsorban
+- site: Az oldal tetején látszó cím
+- dbparams: az adatbáziskapcsolat paraméterei, részei:
+	- ds: datasource specifikáció
+	- user: adatbáziskapcsolat felhasználóneve
+	- passw: adatbáziskapcsolat jelszava
+	- attr: adatbázis kapcsolat attributumai {}
+- [head]: a html kód head részébe beteendó tartalom
+- [bodystart]: a html kód body részének legelejére teendő tartalom
+- [menutext]: a menü felirata (caption)
+- [menumap]: a könyvtárban található templatefájlnevek menüben megjelenő nevei
+- [menuhead]: a menü elé kerülő html kód
+- [menutail]: a menü után kerülő
+- [menurender]: alternatív kód a menüpontok megrajzolásához
+- [mainhead]: az oldal központi részének elejére kerülő html kód
+- [maintail]: az oldal központi részének végére kerülő html kód
+- [defaulttemplate]: ha egy menüpontot sem választottunk ki, akkor megadhatunk
+	egy alapértelmezettet
+- [defaulttext]: szöveg, ami akkor jelenik meg, ha nem választottunk ki egy
+	menüpontot sem, és alapértelmezett menüpont sincs megadva
+- [postdebug]: a post-al küldött adatokat, stb. visszaküldje-e debugfield-be
+	(elég definiálni)
+- [splitcss]: ha definiált, akkor külön query-ként kapja meg a css kódot
+- [reqssl]: ha értéke igaz, akkor csak https felett működik
+- [reqauth]: ha értéke igaz, akkor megköveteli a http beléptetést
+- [style]: saját stílusokat adhatunk meg, amelyet minden esetben az oldal
+	head-jébe fog beágyazni, függetlenül a splitcss-től.
+
+
+a template-k paraméterei:
+- pagetitle: Az oldal tetejére, a címsor végéhez, illetve a főrészbe
+	kiemelt szedéssel illesztendő szöveg
+- renderings: tömb a renderingekkel
+- [style]: az oldal fejlécébe illesztendő fix css kód
+
+renderingek:
+- rendertype: (simpletext, tableview, inputform, multiinput, pkeyview)
+- title: a rendering caption-jébe kerülő cím
+- showonpkey: ha definiáltan hamis, akkor a mezőt, megadott pkey esetén
+  nem mutatjuk
+	* simpletext
+		- text: a renderingbe teendő szöveg
+	* inputform
+		- tablespec: a tábla, ahova tesszük az adatokat
+		- insertmode: strict
+		- columns: []
+	* multiinput
+		- columns: []
+		- statements: []
+	* tableview
+		- tablespec: a tábla, ahonnan lekérjük az adatokat
+		- pkeytemplate: pkey-linknél használt template
+		- pkeycol: az elsődleges kulcs értékét tartalmazó oszlop
+		- columns: []
+	* pkeyview
+		- query: a lekérdezéshez használt sql lekérdezés, pontosan
+		  egy db. ?-t kell tartalmaznia!
+		- pkeycol: a módosítandó tábla elsődleges kulcsát tartalmazó mező
+		- updatetable: a módosítandó tábla neve
+		- columns: []

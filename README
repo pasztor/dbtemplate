@@ -1,0 +1,182 @@
+How to use
+
+1. find a dir in your perl environment, where to copy this, eg.:
+# perl -e 'foreach $i (@INC) {print "$i\n"; }'
+...
+/usr/local/lib/site_perl
+
+Then copy there the main part:
+# cp -a DbTemplate* /usr/local/lib/site_perl
+
+2. Prepare a dir, where you make the webadmin interface available:
+# mkdir /usr/local/share/webmyadmin
+# cat <<END /usr/local/share/webmyadmin/index.cgi
+#!/usr/bin/perl
+
+use strict;
+use DbTemplate::CGI;
+
+DbTemplate::CGI->init('/usr/local/share/mailadmin');
+DbTemplate::CGI->run();
+DbTemplate::CGI->final();
+END
+# cat <<END >/usr/local/share/webmyadmin/.htaccess
+Options +ExecCGI
+AddHandler cgi-script .cgi
+AddDefaultCharset UTF-8
+AuthType Basic
+AuthName MailAdmin
+AuthUserFile /dev/null
+Auth_PG_Database dbname
+Auth_PG_user user
+Auth_PG_host 10.0.0.1
+Auth_PG_pwd passwd
+Auth_PG_pwd_table admins
+Auth_PG_uid_field username
+Auth_PG_pwd_field password
+Auth_PG_encrypted on
+Auth_PG_Authoritative on
+AuthBasicAuthoritative off
+require valid-user
+END
+## Write this somewhere into your apache conf, eg.:
+# cat <<END >/etc/apache2/conf.d/ma
+Alias /myadmin/ /usr/local/share/webmyadmin/
+<Directory /usr/local/share/webmyadmin>
+	AllowOverRide FileInfo AuthConfig Limit Options
+	Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
+</Directory>
+END
+
+3. Prepare your template direcotry:
+# mkdir /usr/local/share/myadmin
+# cat <<END >/usr/local/share/.dtconf
+our $config={
+	site=>'My Admin Site',
+	dbparams=>{
+		ds=>'dbi:Pg:dbname=dbname;host=10.0.0.1',
+		user=>'user',
+		passw=>'passwd',
+		attr=>{ RaiseError => 0 , AutoCommit => 0 }
+	},
+		mailserver=>{
+		host=>'10.0.0.3',
+		port=>143,
+		username=>'cyrus',
+		password=>'password',
+		separator=>'/',
+		inboxname=>'INBOX'
+	},
+	menutext=>'Menu',
+	defaulttext=>'Choose from menu',
+	myhook=>sub {
+		my $rendering=shift;
+		my $environ=shift;
+		my $dbh=shift;
+		return "Some message at the hook exit";
+	},
+	defaulttemplate=>'admins',
+	postdebug=>1,
+	splitcss=>1,
+	reqssl=>1,
+	reqauth=>1
+};
+
+1;
+#:vim:filetype=perl:
+END
+# cat <<END >/usr/local/share/admins
+our $template={
+	pagetitle=>'Admins',
+	renderings=>[
+		{	rendertype=>'tableview',
+			title=>'Admins',
+			tablespec=>'admins',
+			pkeycol=>0,
+			columns=>[
+				{	colname=>'username',
+					pkeylink=>1,
+					description=>'Username' },
+				{	colname=>'password',
+					editable=>1,
+					description=>'Password',
+					enctype=>'cryptmd5' },
+				{	colname=>'email',
+					editable=>1,
+					description=>'E-mail address' },
+				{	colname=>'username',
+					description=>'D',
+					delete=>1}
+			] },
+                {       rendertype=>'inputform',
+			title=>'Add new Admin',
+			tablespec=>'admins',
+			insertmode=>'strict',
+			inserthook=>$config->{myhook},
+			columns=>[
+				{	colname=>'username',
+					description=>'Username',
+					type=>'textline',
+					len=>8 },
+				{	colname=>'password',
+					description=>'Password',
+					type=>'password',
+					enctype=>'cryptmd5' },
+				{	colname=>'email',
+					description=>'E-mail address',
+					type=>'textline',
+					len=>48 }
+		] }
+	],
+};
+
+1;
+#:vim:filetype=perl:
+END
+
+4. Prepare your database
+$ createdb -O user -E UTF-8 dbname
+$ psql dbname
+dbname=# set session authorization user;
+SET
+dbname=> CREATE TABLE admins ( username TEXT PRIMARY KEY, password TEXT, email TEXT) ;
+NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "admins_pkey" for table "admins"
+CREATE TABLE
+
+5. Add more tables to your db, add more templates to /usr/local/share/myadmin
+
+Hint: Make a subdir in /usr/local/share/myadmin, eg.
+# mkdir /usr/local/share/myadmin
+Because, where you want to show subqueries to show, but not show in the main
+menu, it can be useful:
+eg. /usr/local/share/myadmin/domains contain sg. like that:
+...
+	{rendertype=>'tableview',
+	title=>'Domains',
+	tablespec=>'domains',
+	pkeycol=>1,
+	orderby=>'domain',
+	columns=>[
+		{ colname=>'domain', description=>'Domain name' },
+		{ colname=>'id', description=>'FTP', pkeylink=>1, pkeytemplate=>'sub/ftp' },
+		{ colname=>'id', description=>'E-mail', pkeylink=>1, pkeytemplate=>'sub/mailboxes' },
+		{ colname=>'id', description=>'Aliases', pkeylink=>1, pkeytemplate=>'sub/mailalias' },
+		...
+		] }
+
+Then you can use the following in the sub/mailboxes renderings:
+	{rendertype=>'pkeyview',
+	...
+	query=>'SELECT ... FROM ... WHERE domain=?',
+	updatetable=>'mailboxes',
+	...}
+
+or
+	{rendertype=>'multiinput',
+	inserthook=>sub { whatever},
+	insertmode=>'strict',
+	... (col1, col2, ...)
+	statements=>[
+		{ sql=>'INSERT INTO table (col1,col2,...,pkey) VALUES (?,?,?,?)',
+		  params=>['col1','col2',...,'pkey'] }
+	] }

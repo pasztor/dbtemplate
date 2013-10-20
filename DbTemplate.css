@@ -1,0 +1,76 @@
+html {
+background-color: #d8e3d3;
+}
+
+body, td, input {
+font-family: Verdana, Arial, Helvetica, sans-serif;
+font-size: 12px;
+}
+
+/* body {
+background-color: #d8d3d3;
+} */
+
+table.main {
+background-color: #d8d3d3;
+}
+
+table.main td {
+vertical-align: top;
+}
+
+table.menu {
+background-color: #c9c7c7;
+}
+
+table.menu caption {
+font: menu;
+font-size: x-large;
+}
+
+table.menu td {
+font: small-caption;
+font-size: small;
+}
+
+table.query {
+background-color: #a1c09a;
+#border: 3px;
+}
+
+table.query td {
+#border: 3px ;
+vertical-align: middle;
+}
+
+table.query tr {
+#border: 3px ;
+}
+
+form {
+margin: 0;
+padding: 0;
+}
+
+h1.query {
+}
+
+tr.trc1 {
+background-color: #a1c09a;
+}
+
+tr.trc0 {
+background-color: #8ea589;
+}
+
+td.footer {
+text-align: center;
+}
+
+.error {
+color: red;
+}
+
+div.footer {
+font-size: small;
+}

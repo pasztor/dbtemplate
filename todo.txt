@@ -1,0 +1,6 @@
+Megvalósítandó featureök:
+* select-választási lehetőség
+* csoporttagsagi matrix kezelés
+* mező értékének törlése (NULL-ra állítása)
+* törlési, és szerkesztési jogosultság ellenőrzése
+* rekordok "szűrése" a bejelentkezéstől függően
